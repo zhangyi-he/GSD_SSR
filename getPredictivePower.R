@@ -1,65 +1,48 @@
-#' @title Get predictive power
+#' @title Get the predictive power
 #' @author Zhangyi He
+
+#' version 0.1
 
 ################################################################################
 
 #' return the predictive power for testing means in two samples
 getPredictivePowerMeans <- function(testStatistic,
-                                    sided,
+                                    alternative = c("two.sided", "less", "greater"),
                                     alpha,
                                     actualNumberOfSubjects,
-                                    targetNumberOfSubjects,
-                                    allocationRatioPlanned,
-                                    sigma,
-                                    ...,
-                                    alternative = NULL) {
+                                    maxNumberOfSubjects,
+                                    allocationRatio,
+                                    sigma) {
   # calculate the actual information level
   actualInformationLevel <- 1 /
-    (sigma[1]^2 / (actualNumberOfSubjects * (allocationRatioPlanned / (allocationRatioPlanned + 1))) +
-       sigma[2]^2 / (actualNumberOfSubjects * (1 / (allocationRatioPlanned + 1))))
-  # calculate the target information level
-  targetInformationLevel <- 1 /
-    (sigma[1]^2 / (targetNumberOfSubjects * (allocationRatioPlanned / (allocationRatioPlanned + 1))) +
-       sigma[2]^2 / (targetNumberOfSubjects * (1 / (allocationRatioPlanned + 1))))
+    (sigma[1]^2 / (actualNumberOfSubjects * (allocationRatio[1] / sum(allocationRatio))) +
+       sigma[2]^2 / (actualNumberOfSubjects * (allocationRatio[2] / sum(allocationRatio))))
+  # calculate the maximum information level
+  maxInformationLevel <- 1 /
+    (sigma[1]^2 / (maxNumberOfSubjects * (allocationRatio[1] / sum(allocationRatio))) +
+       sigma[2]^2 / (maxNumberOfSubjects * (allocationRatio[2] / sum(allocationRatio))))
 
-  if (sided == 1) {
-    if (is.null(alternative)) {
-      predictivePower <- 
-        pnorm(q = (-testStatistic * sqrt(targetInformationLevel) -
-                     qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                sqrt(targetInformationLevel - actualInformationLevel),
-              mean = 0, sd = 1)
-      predictivePower <- 
-        cbind(predictivePower,
-              pnorm(q = (testStatistic * sqrt(targetInformationLevel) -
-                           qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                      sqrt(targetInformationLevel - actualInformationLevel),
-                    mean = 0, sd = 1), 
-              deparse.level = 0)
-    } else {
-      if (alternative == "less") {
-        predictivePower <- 
-          pnorm(q = (-testStatistic * sqrt(targetInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      } else {
-        predictivePower <- 
-          pnorm(q = (testStatistic * sqrt(targetInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      }
-    }
+  if (alternative == "less") {
+    predictivePower <-
+      pnorm(q = (-testStatistic * sqrt(maxInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
+  } else if (alternative == "greater") {
+    predictivePower <-
+      pnorm(q = (testStatistic * sqrt(maxInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
   } else {
     predictivePower <-
-      pnorm(q = (-abs(testStatistic) * sqrt(targetInformationLevel) -
+      pnorm(q = (-abs(testStatistic) * sqrt(maxInformationLevel) -
                    qnorm(1 - alpha / 2) * sqrt(actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1) +
-      pnorm(q = (abs(testStatistic) * sqrt(targetInformationLevel) -
+      pnorm(q = (abs(testStatistic) * sqrt(maxInformationLevel) -
                    qnorm(1 - alpha / 2) * sqrt(actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1)
   }
 
@@ -68,82 +51,63 @@ getPredictivePowerMeans <- function(testStatistic,
 
 # # validation with Example 2 from PASS Chapter 433
 # testStatistic <- 2.12
-# sided <- 2
+# alternative <- "two.sided"
 # alpha <- 0.05
 # actualNumberOfSubjects <- 60
-# targetNumberOfSubjects <- 120
-# allocationRatioPlanned <- 1
+# maxNumberOfSubjects <- 120
+# allocationRatio <- c(1, 1)
 # mu <- c(0, 0.5)
 # sigma <- c(4, 4)
-# 
+#
 # getPredictivePowerMeans(
 #   testStatistic = testStatistic,
-#   sided = sided,
+#   alternative = alternative,
 #   alpha = alpha,
 #   actualNumberOfSubjects = actualNumberOfSubjects,
-#   targetNumberOfSubjects = targetNumberOfSubjects,
-#   allocationRatioPlanned = allocationRatioPlanned,
+#   maxNumberOfSubjects = maxNumberOfSubjects,
+#   allocationRatio = allocationRatio,
 #   sigma = sigma)
 
 ########################################
 
 #' return the predictive power for testing rates in two samples
 getPredictivePowerRates <- function(testStatistic,
-                                    sided,
+                                    alternative = c("two.sided", "less", "greater"),
                                     alpha,
                                     actualNumberOfSubjects,
-                                    targetNumberOfSubjects,
-                                    allocationRatioPlanned,
-                                    rate,
-                                    ...,
-                                    alternative = NULL) {
+                                    maxNumberOfSubjects,
+                                    allocationRatio,
+                                    pi) {
   # calculate the actual information level
-  actualInformationLevel <- 1 / (((rate[2] + rate[1]) / 2) * (1 - ((rate[2] + rate[1]) / 2))) * 1 /
-    (1 / (actualNumberOfSubjects * (allocationRatioPlanned / (allocationRatioPlanned + 1))) +
-       1 / (actualNumberOfSubjects * (1 / (allocationRatioPlanned + 1))))
-  # calculate the target information level
-  targetInformationLevel <- 1 / (((rate[2] + rate[1]) / 2) * (1 - ((rate[2] + rate[1]) / 2))) * 1 /
-    (1 / (targetNumberOfSubjects * (allocationRatioPlanned / (allocationRatioPlanned + 1))) +
-       1 / (targetNumberOfSubjects * (1 / (allocationRatioPlanned + 1))))
+  actualInformationLevel <- 1 / (((pi[2] + pi[1]) / 2) * (1 - ((pi[2] + pi[1]) / 2))) * 1 /
+    (1 / (actualNumberOfSubjects * (allocationRatio[1] / sum(allocationRatio))) +
+       1 / (actualNumberOfSubjects * (allocationRatio[2] / sum(allocationRatio))))
+  # calculate the maximum information level
+  maxInformationLevel <- 1 / (((pi[2] + pi[1]) / 2) * (1 - ((pi[2] + pi[1]) / 2))) * 1 /
+    (1 / (maxNumberOfSubjects * (allocationRatio[1] / sum(allocationRatio))) +
+       1 / (maxNumberOfSubjects * (allocationRatio[2] / sum(allocationRatio))))
 
-  if (sided == 1) {
-    if (is.null(alternative)) {
-      predictivePower <- 
-        pnorm(q = (-testStatistic * sqrt(targetInformationLevel) -
-                     qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                sqrt(targetInformationLevel - actualInformationLevel),
-              mean = 0, sd = 1)
-      predictivePower <- 
-        cbind(predictivePower,
-              pnorm(q = (testStatistic * sqrt(targetInformationLevel) -
-                           qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                      sqrt(targetInformationLevel - actualInformationLevel),
-                    mean = 0, sd = 1), 
-              deparse.level = 0)
-    } else {
-      if (alternative == "less") {
-        predictivePower <- 
-          pnorm(q = (-testStatistic * sqrt(targetInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      } else {
-        predictivePower <- 
-          pnorm(q = (testStatistic * sqrt(targetInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      }
-    }
+  if (alternative == "less") {
+    predictivePower <-
+      pnorm(q = (-testStatistic * sqrt(maxInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
+  } else if (alternative == "greater") {
+    predictivePower <-
+      pnorm(q = (testStatistic * sqrt(maxInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
   } else {
     predictivePower <-
-      pnorm(q = (-abs(testStatistic) * sqrt(targetInformationLevel) -
+      pnorm(q = (-abs(testStatistic) * sqrt(maxInformationLevel) -
                    qnorm(1 - alpha / 2) * sqrt(actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1) +
-      pnorm(q = (abs(testStatistic) * sqrt(targetInformationLevel) -
+      pnorm(q = (abs(testStatistic) * sqrt(maxInformationLevel) -
                    qnorm(1 - alpha / 2) * sqrt(actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1)
   }
 
@@ -152,80 +116,59 @@ getPredictivePowerRates <- function(testStatistic,
 
 # # validation with Example 1 from PASS Chapter 202
 # testStatistic <- c(0, 0.5, 1, 1.5, 2, 2.5)
-# sided <- 1
+# alternative <- "greater"
 # alpha <- 0.025
 # actualNumberOfSubjects <- 60
-# targetNumberOfSubjects <- 120
-# allocationRatioPlanned <- 1
-# rate <- c(0.6, 0.7)
-# alternative <- "greater"
-# 
+# maxNumberOfSubjects <- 120
+# allocationRatio <- c(1, 1)
+# pi <- c(0.6, 0.7)
+#
 # getPredictivePowerRates(
 #   testStatistic = testStatistic,
-#   sided = sided,
+#   alternative = alternative,
 #   alpha = alpha,
 #   actualNumberOfSubjects = actualNumberOfSubjects,
-#   targetNumberOfSubjects = targetNumberOfSubjects,
-#   allocationRatioPlanned = allocationRatioPlanned,
-#   rate = rate,
-#   alternative = alternative)
+#   maxNumberOfSubjects = maxNumberOfSubjects,
+#   allocationRatio = allocationRatio,
+#   pi = pi)
 
 ########################################
 
 #' return the predictive power for testing the hazard ratio in two samples
 getPredictivePowerSurvival <- function(testStatistic,
-                                       sided,
+                                       alternative = c("two.sided", "less", "greater"),
                                        alpha,
-                                       targetNumberOfEvents,
                                        actualNumberOfEvents,
-                                       allocationRatioPlanned,
-                                       ...,
-                                       alternative = NULL) {
+                                       maxNumberOfEvents,
+                                       allocationRatio) {
   # calculate the actual information level
   actualInformationLevel <- actualNumberOfEvents *
-    allocationRatioPlanned / (allocationRatioPlanned + 1) * 1 / (allocationRatioPlanned + 1)
-  # calculate the target information level
-  targetInformationLevel <- targetNumberOfEvents *
-    allocationRatioPlanned / (allocationRatioPlanned + 1) * 1 / (allocationRatioPlanned + 1)
+    allocationRatio[1] / sum(allocationRatio) * allocationRatio[2] / sum(allocationRatio)
+  # calculate the maximum information level
+  maxInformationLevel <- maxNumberOfEvents *
+    allocationRatio[1] / sum(allocationRatio) * allocationRatio[2] / sum(allocationRatio)
 
-  if (sided == 1) {
-    if (is.null(alternative)) {
-      predictivePower <- 
-        pnorm(q = (-testStatistic * sqrt(targetInformationLevel) -
-                     qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                sqrt(targetInformationLevel - actualInformationLevel),
-              mean = 0, sd = 1)
-      predictivePower <- 
-        cbind(predictivePower,
-              pnorm(q = (testStatistic * sqrt(targetInformationLevel) -
-                           qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                      sqrt(targetInformationLevel - actualInformationLevel),
-                    mean = 0, sd = 1), 
-              deparse.level = 0)
-    } else {
-      if (alternative == "less") {
-        predictivePower <- 
-          pnorm(q = (-testStatistic * sqrt(targetInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      } else {
-        predictivePower <- 
-          pnorm(q = (testStatistic * sqrt(targetInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      }
-    }
+  if (alternative == "less") {
+    predictivePower <-
+      pnorm(q = (-testStatistic * sqrt(maxInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
+  } else if (alternative == "greater") {
+    predictivePower <-
+      pnorm(q = (testStatistic * sqrt(maxInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
   } else {
     predictivePower <-
-      pnorm(q = (-abs(testStatistic) * sqrt(targetInformationLevel) -
+      pnorm(q = (-abs(testStatistic) * sqrt(maxInformationLevel) -
                    qnorm(1 - alpha / 2) * sqrt(actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1) +
-      pnorm(q = (abs(testStatistic) * sqrt(targetInformationLevel) -
+      pnorm(q = (abs(testStatistic) * sqrt(maxInformationLevel) -
                    qnorm(1 - alpha / 2) * sqrt(actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1)
   }
 
@@ -234,20 +177,18 @@ getPredictivePowerSurvival <- function(testStatistic,
 
 # # validation with Example 1 from PASS Chapter 701
 # testStatistic <- c(-3, -2.5, -2, -1.5, -1)
-# sided <- 1
-# alpha <- 0.025
-# targetNumberOfEvents <- 200
-# actualNumberOfEvents <- 100
-# allocationRatioPlanned <- 1
 # alternative <- "less"
-# 
+# alpha <- 0.025
+# actualNumberOfEvents <- 100
+# maxNumberOfEvents <- 200
+# allocationRatio <- c(1, 1)
+#
 # getPredictivePowerSurvival(
 #   testStatistic = testStatistic,
-#   sided = sided,
+#   alternative = alternative,
 #   alpha = alpha,
-#   targetNumberOfEvents = targetNumberOfEvents,
 #   actualNumberOfEvents = actualNumberOfEvents,
-#   allocationRatioPlanned = allocationRatioPlanned,
-#   alternative = alternative)
+#   maxNumberOfEvents = maxNumberOfEvents,
+#   allocationRatio = allocationRatio)
 
 ################################################################################

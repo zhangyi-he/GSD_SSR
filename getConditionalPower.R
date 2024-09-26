@@ -1,75 +1,56 @@
-#' @title Get conditional power
+#' @title Get the conditional power
 #' @author Zhangyi He
+
+#' version 0.1
 
 ################################################################################
 
 #' return the conditional power for testing means in two samples
 getConditionalPowerMeans <- function(testStatistic,
-                                     sided,
+                                     alternative = c("two.sided", "less", "greater"),
                                      alpha,
                                      actualNumberOfSubjects,
-                                     targetNumberOfSubjects,
-                                     allocationRatioPlanned,
+                                     maxNumberOfSubjects,
+                                     allocationRatio,
                                      mu,
-                                     sigma,
-                                     ...,
-                                     alternative = NULL) {
+                                     sigma) {
   # calculate the parameter being tested by the hypothesis
   theta <- mu[2] - mu[1]
 
   # calculate the actual information level
   actualInformationLevel <- 1 /
-    (sigma[1]^2 / (actualNumberOfSubjects * (allocationRatioPlanned / (allocationRatioPlanned + 1))) +
-       sigma[2]^2 / (actualNumberOfSubjects * (1 / (allocationRatioPlanned + 1))))
-  # calculate the target information level
-  targetInformationLevel <- 1 /
-    (sigma[1]^2 / (targetNumberOfSubjects * (allocationRatioPlanned / (allocationRatioPlanned + 1))) +
-       sigma[2]^2 / (targetNumberOfSubjects * (1 / (allocationRatioPlanned + 1))))
+    (sigma[1]^2 / (actualNumberOfSubjects * (allocationRatio[1] / sum(allocationRatio))) +
+       sigma[2]^2 / (actualNumberOfSubjects * (allocationRatio[2] / sum(allocationRatio))))
+  # calculate the maximum information level
+  maxInformationLevel <- 1 /
+    (sigma[1]^2 / (maxNumberOfSubjects * (allocationRatio[1] / sum(allocationRatio))) +
+       sigma[2]^2 / (maxNumberOfSubjects * (allocationRatio[2] / sum(allocationRatio))))
 
-  if (sided == 1) {
-    if (is.null(alternative)) {
-      conditionalPower <- 
-        pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
-                     qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) -
-                     theta * (targetInformationLevel - actualInformationLevel)) /
-                sqrt(targetInformationLevel - actualInformationLevel),
-              mean = 0, sd = 1)
-      conditionalPower <- 
-        cbind(conditionalPower,
-              pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
-                           qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) +
-                           theta * (targetInformationLevel - actualInformationLevel)) /
-                      sqrt(targetInformationLevel - actualInformationLevel),
-                    mean = 0, sd = 1), 
-              deparse.level = 0)
-    } else {
-      if (alternative == "less") {
-        conditionalPower <- 
-          pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) -
-                       theta * (targetInformationLevel - actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      } else {
-        conditionalPower <- 
-          pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) +
-                       theta * (targetInformationLevel - actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      }
-    }
+  if (alternative == "less") {
+    conditionalPower <-
+      pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(maxInformationLevel) -
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
+  } else if (alternative == "greater") {
+    conditionalPower <-
+      pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(maxInformationLevel) +
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
   } else {
     conditionalPower <-
       pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
-                   qnorm(1 - alpha / 2) * sqrt(targetInformationLevel) -
-                   theta * (targetInformationLevel - actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+                   qnorm(1 - alpha / 2) * sqrt(maxInformationLevel) -
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1) +
       pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
-                   qnorm(1 - alpha / 2) * sqrt(targetInformationLevel) +
-                   theta * (targetInformationLevel - actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+                   qnorm(1 - alpha / 2) * sqrt(maxInformationLevel) +
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1)
   }
 
@@ -78,21 +59,21 @@ getConditionalPowerMeans <- function(testStatistic,
 
 # # validation with Example 2 from PASS Chapter 433
 # testStatistic <- 2.12
-# sided <- 2
+# alternative <- "two.sided"
 # alpha <- 0.05
 # actualNumberOfSubjects <- 60
-# targetNumberOfSubjects <- 120
-# allocationRatioPlanned <- 1
+# maxNumberOfSubjects <- 120
+# allocationRatio <- c(1, 1)
 # mu <- c(0, 0.5)
 # sigma <- c(4, 4)
-# 
+#
 # getConditionalPowerMeans(
 #   testStatistic = testStatistic,
-#   sided = sided,
+#   alternative = alternative,
 #   alpha = alpha,
 #   actualNumberOfSubjects = actualNumberOfSubjects,
-#   targetNumberOfSubjects = targetNumberOfSubjects,
-#   allocationRatioPlanned = allocationRatioPlanned,
+#   maxNumberOfSubjects = maxNumberOfSubjects,
+#   allocationRatio = allocationRatio,
 #   mu = mu,
 #   sigma = sigma)
 
@@ -100,70 +81,49 @@ getConditionalPowerMeans <- function(testStatistic,
 
 #' return the conditional power for testing rates in two samples
 getConditionalPowerRates <- function(testStatistic,
-                                     sided,
+                                     alternative = c("two.sided", "less", "greater"),
                                      alpha,
                                      actualNumberOfSubjects,
-                                     targetNumberOfSubjects,
-                                     allocationRatioPlanned,
-                                     rate,
-                                     ...,
-                                     alternative = NULL) {
+                                     maxNumberOfSubjects,
+                                     allocationRatio,
+                                     pi) {
   # calculate the parameter being tested by the hypothesis
-  theta <- rate[2] - rate[1]
+  theta <- pi[2] - pi[1]
 
   # calculate the actual information level
-  actualInformationLevel <- 1 / (((rate[2] + rate[1]) / 2) * (1 - ((rate[2] + rate[1]) / 2))) * 1 /
-    (1 / (actualNumberOfSubjects * (allocationRatioPlanned / (allocationRatioPlanned + 1))) +
-       1 / (actualNumberOfSubjects * (1 / (allocationRatioPlanned + 1))))
-  # calculate the target information level
-  targetInformationLevel <- 1 / (((rate[2] + rate[1]) / 2) * (1 - ((rate[2] + rate[1]) / 2))) * 1 /
-    (1 / (targetNumberOfSubjects * (allocationRatioPlanned / (allocationRatioPlanned + 1))) +
-       1 / (targetNumberOfSubjects * (1 / (allocationRatioPlanned + 1))))
+  actualInformationLevel <- 1 / (((pi[2] + pi[1]) / 2) * (1 - ((pi[2] + pi[1]) / 2))) * 1 /
+    (1 / (actualNumberOfSubjects * (allocationRatio[1] / sum(allocationRatio))) +
+       1 / (actualNumberOfSubjects * (allocationRatio[2] / sum(allocationRatio))))
+  # calculate the maximum information level
+  maxInformationLevel <- 1 / (((pi[2] + pi[1]) / 2) * (1 - ((pi[2] + pi[1]) / 2))) * 1 /
+    (1 / (maxNumberOfSubjects * (allocationRatio[1] / sum(allocationRatio))) +
+       1 / (maxNumberOfSubjects * (allocationRatio[2] / sum(allocationRatio))))
 
-  if (sided == 1) {
-    if (is.null(alternative)) {
-      conditionalPower <- 
-        pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
-                     qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) -
-                     theta * (targetInformationLevel - actualInformationLevel)) /
-                sqrt(targetInformationLevel - actualInformationLevel),
-              mean = 0, sd = 1)
-      conditionalPower <- 
-        cbind(conditionalPower,
-              pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
-                           qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) +
-                           theta * (targetInformationLevel - actualInformationLevel)) /
-                      sqrt(targetInformationLevel - actualInformationLevel),
-                    mean = 0, sd = 1), 
-              deparse.level = 0)
-    } else {
-      if (alternative == "less") {
-        conditionalPower <- 
-          pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) -
-                       theta * (targetInformationLevel - actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      } else {
-        conditionalPower <- 
-          pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) +
-                       theta * (targetInformationLevel - actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      }
-    }
+  if (alternative == "less") {
+    conditionalPower <-
+      pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(maxInformationLevel) -
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
+  } else if (alternative == "greater") {
+    conditionalPower <-
+      pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(maxInformationLevel) +
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
   } else {
     conditionalPower <-
       pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
-                   qnorm(1 - alpha / 2) * sqrt(targetInformationLevel) -
-                   theta * (targetInformationLevel - actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+                   qnorm(1 - alpha / 2) * sqrt(maxInformationLevel) -
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1) +
       pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
-                   qnorm(1 - alpha / 2) * sqrt(targetInformationLevel) +
-                   theta * (targetInformationLevel - actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+                   qnorm(1 - alpha / 2) * sqrt(maxInformationLevel) +
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1)
   }
 
@@ -172,91 +132,71 @@ getConditionalPowerRates <- function(testStatistic,
 
 # # validation with Example 1 from PASS Chapter 202
 # testStatistic <- c(0, 0.5, 1, 1.5, 2, 2.5)
-# sided <- 1
+# alternative <- "greater"
 # alpha <- 0.025
 # actualNumberOfSubjects <- 60
-# targetNumberOfSubjects <- 120
-# allocationRatioPlanned <- 1
-# rate <- c(0.6, 0.7)
-# alternative <- "greater"
-# 
+# maxNumberOfSubjects <- 120
+# allocationRatio <- c(1, 1)
+# pi <- c(0.6, 0.7)
+#
 # getConditionalPowerRates(
 #   testStatistic = testStatistic,
-#   sided = sided,
+#   alternative = alternative,
 #   alpha = alpha,
 #   actualNumberOfSubjects = actualNumberOfSubjects,
-#   targetNumberOfSubjects = targetNumberOfSubjects,
-#   allocationRatioPlanned = allocationRatioPlanned,
-#   rate = rate,
-#   alternative = alternative)
+#   maxNumberOfSubjects = maxNumberOfSubjects,
+#   allocationRatio = allocationRatio,
+#   pi = pi)
 
 ########################################
 
 #' return the conditional power for testing the hazard ratio in two samples
 getConditionalPowerSurvival <- function(testStatistic,
-                                        sided,
+                                        alternative = c("two.sided", "less", "greater"),
                                         alpha,
-                                        targetNumberOfEvents,
                                         actualNumberOfEvents,
-                                        allocationRatioPlanned,
-                                        hazardRate,
+                                        maxNumberOfEvents,
+                                        allocationRatio,
+                                        lambda,
                                         ...,
-                                        hazardRatio = NULL,
-                                        alternative = NULL) {
+                                        hazardRatio = NULL) {
+  hazardRatio <- ifelse(is.null(hazardRatio), lambda[2] / lambda[1], hazardRatio)
+
   # calculate the parameter being tested by the hypothesis
-  theta <- ifelse(is.null(hazardRatio), log(hazardRate[2] / hazardRate[1]), log(hazardRatio))
+  theta <- log(hazardRatio)
 
   # calculate the actual information level
   actualInformationLevel <- actualNumberOfEvents *
-    allocationRatioPlanned / (allocationRatioPlanned + 1) * 1 / (allocationRatioPlanned + 1)
-  # calculate the target information level
-  targetInformationLevel <- targetNumberOfEvents *
-    allocationRatioPlanned / (allocationRatioPlanned + 1) * 1 / (allocationRatioPlanned + 1)
+    allocationRatio[1] / sum(allocationRatio) * allocationRatio[2] / sum(allocationRatio)
+  # calculate the maximum information level
+  maxInformationLevel <- maxNumberOfEvents *
+    allocationRatio[1] / sum(allocationRatio) * allocationRatio[2] / sum(allocationRatio)
 
-  if (sided == 1) {
-    if (is.null(alternative)) {
-      conditionalPower <- 
-        pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
-                     qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) -
-                     theta * (targetInformationLevel - actualInformationLevel)) /
-                sqrt(targetInformationLevel - actualInformationLevel),
-              mean = 0, sd = 1)
-      conditionalPower <- 
-        cbind(conditionalPower,
-              pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
-                           qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) +
-                           theta * (targetInformationLevel - actualInformationLevel)) /
-                      sqrt(targetInformationLevel - actualInformationLevel),
-                    mean = 0, sd = 1), 
-              deparse.level = 0)
-    } else {
-      if (alternative == "less") {
-        conditionalPower <- 
-          pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) -
-                       theta * (targetInformationLevel - actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      } else {
-        conditionalPower <- 
-          pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
-                       qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(targetInformationLevel) +
-                       theta * (targetInformationLevel - actualInformationLevel)) /
-                  sqrt(targetInformationLevel - actualInformationLevel),
-                mean = 0, sd = 1)
-      }
-    }
+  if (alternative == "less") {
+    conditionalPower <-
+      pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(maxInformationLevel) -
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
+  } else if (alternative == "greater") {
+    conditionalPower <-
+      pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
+                   qnorm(p = 1 - alpha, mean = 0, sd = 1) * sqrt(maxInformationLevel) +
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
+            mean = 0, sd = 1)
   } else {
     conditionalPower <-
       pnorm(q = (-testStatistic * sqrt(actualInformationLevel) -
-                   qnorm(1 - alpha / 2) * sqrt(targetInformationLevel) -
-                   theta * (targetInformationLevel - actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+                   qnorm(1 - alpha / 2) * sqrt(maxInformationLevel) -
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1) +
       pnorm(q = (testStatistic * sqrt(actualInformationLevel) -
-                   qnorm(1 - alpha / 2) * sqrt(targetInformationLevel) +
-                   theta * (targetInformationLevel - actualInformationLevel)) /
-              sqrt(targetInformationLevel - actualInformationLevel),
+                   qnorm(1 - alpha / 2) * sqrt(maxInformationLevel) +
+                   theta * (maxInformationLevel - actualInformationLevel)) /
+              sqrt(maxInformationLevel - actualInformationLevel),
             mean = 0, sd = 1)
   }
 
@@ -265,22 +205,20 @@ getConditionalPowerSurvival <- function(testStatistic,
 
 # # validation with Example 1 from PASS Chapter 701
 # testStatistic <- c(-3, -2.5, -2, -1.5, -1)
-# sided <- 1
-# alpha <- 0.025
-# targetNumberOfEvents <- 200
-# actualNumberOfEvents <- 100
-# allocationRatioPlanned <- 1
-# hazardRatio <- 0.8
 # alternative <- "less"
-# 
+# alpha <- 0.025
+# actualNumberOfEvents <- 100
+# maxNumberOfEvents <- 200
+# allocationRatio <- c(1, 1)
+# hazardRatio <- 0.8
+#
 # getConditionalPowerSurvival(
 #   testStatistic = testStatistic,
-#   sided = sided,
+#   alternative = alternative,
 #   alpha = alpha,
-#   targetNumberOfEvents = targetNumberOfEvents,
 #   actualNumberOfEvents = actualNumberOfEvents,
-#   allocationRatioPlanned = allocationRatioPlanned,
-#   hazardRatio = hazardRatio,
-#   alternative = alternative)
+#   maxNumberOfEvents = maxNumberOfEvents,
+#   allocationRatio = allocationRatio,
+#   hazardRatio = hazardRatio)
 
 ################################################################################
